@@ -4,7 +4,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 set(VIT_CUDA_VERSION 10.2) # 11.4 or 10.2 for now
 set(CUDA_VERSION ${VIT_CUDA_VERSION})
 #set(VIT_CUDA_ARCHITECTURES 75)
-set(VIT_CUDA_ARCHITECTURES 62)
+#set(VIT_CUDA_ARCHITECTURES 62)
 
 set(CMAKE_CUDA_COMPILER "/usr/local/cuda-${VIT_CUDA_VERSION}/bin/nvcc")
 #set(CMAKE_CXX_COMPILER "/usr/lib/llvm-12/bin/clang++")
@@ -30,7 +30,6 @@ include_directories(
 )
 
 find_package(OpenCV REQUIRED)
-link_libraries(GL GLU glut cufft)
 
 add_executable(opencv_and_cuda main.cu main.h run.cpp)
 
@@ -38,7 +37,7 @@ set_target_properties(
         opencv_and_cuda
         PROPERTIES
         CUDA_SEPARABLE_COMPILATION ON
-        CUDA_ARCHITECTURES ${VIT_CUDA_ARCHITECTURES}
+        # CUDA_ARCHITECTURES ${VIT_CUDA_ARCHITECTURES}
 )
 
 target_link_libraries(opencv_and_cuda
