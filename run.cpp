@@ -17,7 +17,7 @@ Mat& colorize(const Mat& src, Mat& dst){
 }
 
 int main(){
-	constexpr int w = 1920, h=1080;
+	constexpr int w = 1920, h=1080; // the must: w%32==0
 	int dx = w/2, dy = h/2;
 	float a = 1.62, scaleInit = 1.5;
 	float scale = scaleInit;
@@ -27,7 +27,7 @@ int main(){
 	VideoWriter vw("./fractal.avi", CAP_FFMPEG, VideoWriter::fourcc('X','2','6','4'), 24, Size(w,h), true);
 	bool record = false;
 	//
-	auto cc = cuCalc( img.data, w, h, scale, a);
+	auto cc = cuCalc(img.data, w, h, scale, dx, dy, a);
 	int key=32, lastKey=0, delay=20;
 	double avrgDt=0;
 	float da = 1e-5;
