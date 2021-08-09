@@ -7,7 +7,7 @@ struct cuCalc {
 	unsigned char *devImg = nullptr;
 	const unsigned long imgSz;
 	const int w,h;
-	const uint n = 32; // threads per block, w%n==0
+	const unsigned int n = 64; // threads per block, w%n==0
 
 
 	cuCalc(unsigned char *host_bitmap, int w, int h, float scaleInit, int dx, int dy, float angle);

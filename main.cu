@@ -16,11 +16,11 @@ public:
 };
 
 __device__ unsigned char julia(const complex& c, const int w, const int h, const int x, const int y, const float scale, const int dx, const int dy){
-	float xx = (scale*(float)(dx-x))/((float)w/2);
-	float yy = (scale*(float)(dy-y))/((float)h/2);
+	float xx = (scale*(float)(dx-x))/((float)w);
+	float yy = (scale*(float)(dy-y))/((float)h);
 	complex a(xx, yy);
 	//
-	constexpr int q = 1000;
+	constexpr int q = 500;
 	for (int i=1; i<q; i++) {
 		a = a*a + c;
 		if(a.magnitude2() > 4){

@@ -12,14 +12,15 @@ constexpr int keyLeft = 81, keyRight = 83, keyUp = 82, keyDown = 84;
 constexpr int keyPgup = 85, keyPgdown = 86;
 
 Mat& colorize(const Mat& src, Mat& dst){
-	applyColorMap(src, dst, COLORMAP_JET);
+	applyColorMap(src, dst, COLORMAP_MAGMA);
 	return dst;
 }
 
 int main(){
-	constexpr int w = 1920, h=1080; // the must: w%32==0
+	constexpr int w = 64*30, h=1080; // 64*30=1920
+	static_assert(w%64==0); // since we have 64-threaded blocks
 	int dx = w/2, dy = h/2;
-	float a = 1.62, scaleInit = 1.5;
+	float a = 1.62, scaleInit = 3;
 	float scale = scaleInit;
 	Mat img(h, w, CV_8UC1, Scalar(0));
 	Mat imgC(h, w, CV_8UC3);
@@ -38,7 +39,6 @@ int main(){
 		//
 		if((char)lastKey == 'a'){       scale *= 0.99;}
 		else if((char)lastKey == 'z'){  scale *= (1/0.99);}
-		else if((char)key == 'r'){      record = !record; cout<<"record state: "<<record<<endl;}
 		else if(lastKey == keyLeft){    dx +=10;}
 		else if(lastKey == keyRight){   dx -= 10;}
 		else if(lastKey == keyUp){      dy +=10;}
@@ -47,6 +47,7 @@ int main(){
 		else if(lastKey == keyPgdown){  a -= da;}
 		if((char)key == 'f'){           da *= 2;}
 		else if((char)key == 's'){      da *= 1./2;}
+		else if((char)key == 'r'){      record = !record; cout<<"record state: "<<record<<endl;}
 		//
 		cc.recalc(img.data, scale, dx, dy, a);
 		//
@@ -60,7 +61,7 @@ int main(){
 		if(key>0 && (char)key !='f' && (char)key !='s'){ // -1 if no key pressed
 			lastKey = key; cout<<"key = "<<key<<endl;
 		}
-		if(cou>0 && cou%(int)(1000/delay)==0){ cout<< "fps = " << 1000/(avrgDt + DBL_EPSILON) << endl; }
+		if(cou>0 && cou%(int)(1000/delay)==0){ cout<<"dt = "<<avrgDt<<" ms"<<endl; }
 	}
 
 	return 0;
