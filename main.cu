@@ -20,21 +20,23 @@ __device__ unsigned char julia(const complex& c, const int w, const int h, const
 	float yy = (scale*(float)(dy-y))/((float)h);
 	complex a(xx, yy);
 	//
-	constexpr int q = 500;
-	for (int i=1; i<q; i++) {
-		a = a*a + c;
+	constexpr uint unroll = 4; // loop unroll and 'if' check reducing; profiling shows 4 is the best value
+	constexpr uint q = 1024/unroll; // 1024 is enough and 1024/4=256 -- we are lucky!
+	for (uint i=0; i<q; i++) {
+		for (uint j=0; j<unroll; j++) {
+			a = a*a + c;
+		}
 		if(a.magnitude2() > 4){
-			i = i*255/q;
-			return (i<254? i : 255);
+			return (unsigned char)(__fsqrt_rd(255*255*(float)i/q));
 		}
 	}
-	return 0;
+	return 255;
 }
 
 __global__  void kernel( unsigned char *ptr, const int w, const int h, const float sin, const float cos, const float scale, const int dx, const int dy) {
 	const int x = (int)(threadIdx.x + blockIdx.x*blockDim.x);
 	const int y = (int)blockIdx.y;
-	constexpr float r = 0.71; // 0.7885;
+	constexpr float r = 0.71; // 0.7885; different r-values in [0;~1] are possible
 	complex c(r*cos, r*sin);
 	ptr[x + y*gridDim.x*blockDim.x] = julia(c, w, h, x, y, scale, dx, dy);
 }
