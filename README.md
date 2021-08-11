@@ -7,3 +7,4 @@ Press keys to animate:
 * PgUp, PgDn – change C
 * a, z – zoom +/-
 * f, s – speed +/-
+* r – resume/pause video recording.
