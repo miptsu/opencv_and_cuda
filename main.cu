@@ -41,22 +41,23 @@ __global__  void kernel( unsigned char *ptr, const int w, const int h, const flo
 	ptr[x + y*gridDim.x*blockDim.x] = julia(c, w, h, x, y, scale, dx, dy);
 }
 
-cuCalc::cuCalc(unsigned char *host_bitmap, const int w, const int h, const float scaleInit, const int dx, const int dy, const float angle)
+CuCalc::CuCalc(unsigned char *host_bitmap, const int w, const int h, const float scaleInit, const int dx, const int dy, const float angle)
 				: w(w), h(h), imgSz(w*h*sizeof(unsigned char)){
 	cudaMalloc((void**)&devImg, imgSz);
 	this->recalc(host_bitmap, scaleInit, dx, dy, angle);
 }
 
-cuCalc::~cuCalc(){
+CuCalc::~CuCalc(){
 	cudaFree(devImg);
 }
 
-void cuCalc::recalc(unsigned char *host_bitmap, const float scale, const int dx, const int dy, float angle) const {
-	if(w%n != 0){ return;}
+int CuCalc::recalc(unsigned char *host_bitmap, const float scale, const int dx, const int dy, float angle) const {
+	if(w%n != 0){ return 1;}
 	dim3 threads(n, 1);
 	dim3 grid(w/n, h);
 	float sin = std::sin(angle), cos = std::cos(angle);
 	kernel<<<grid,threads>>>(devImg, w, h, sin, cos, scale, dx, dy);
 	cudaDeviceSynchronize();
 	cudaMemcpy(host_bitmap, devImg, imgSz, cudaMemcpyDeviceToHost);
+	return 0;
 }
