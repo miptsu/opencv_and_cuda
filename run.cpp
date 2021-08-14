@@ -29,6 +29,7 @@ int main(){
 	Motion m = STOP;
 	Evolution e = PAUSE;
 	bool record = false, loop = false;
+	int colormap = 11;
 	// creates file always, even if no record requested - it is ok
 	VideoWriter vw("./fractal.avi", CAP_FFMPEG, VideoWriter::fourcc('X','2','6','4'), 24, Size(w,h), true);
 
@@ -47,7 +48,7 @@ int main(){
 
 		// draw section
 		const auto t0 = chrono::steady_clock::now();
-		applyColorMap(img, imgC, COLORMAP_HOT); // takes a lot of resources, use UMat or draw bw-image 'img' in case of freezing
+		applyColorMap(img, imgC, colormap); // takes a lot of resources, use UMat or draw bw-image 'img' in case of freezing
 		imshow("fractal", imgC); // imshow and waitKey must be in the main thread
 		if(record && vw.isOpened()){ vw << imgC;}
 		const auto t1 = chrono::steady_clock::now();
@@ -95,6 +96,8 @@ int main(){
 		if(e == GO){    a += da;}
 		if(e == BACK){  a -= da;}
 		//
+		if((char)key == 'c'){ colormap = colormap<=0 ? 0 : colormap-1;}
+		if((char)key == 'd'){ colormap = colormap>=21 ? 21 : colormap+1;}
 		if((char)key == 'r'){ record = !record; cout<<"record state: "<<record<<endl;}
 		if((char)key == 'p'){
 			stringstream ss; ss << "picture-" << cou << ".png";

@@ -7,5 +7,6 @@ Hot keys:
 * PgUp, PgDn – change C animation
 * a, z – zoom +/- animation
 * f, s – speed +/- for animation
-* r – resume/pause video recording.
+* c, d - colormap choose
+* r – resume/pause video recording
 * p - record png-image.
