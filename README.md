@@ -4,9 +4,10 @@ Creates Julia set ( https://en.wikipedia.org/wiki/Julia_set ) using CUDA for cal
 
 Hot keys:
 * arrows – move animation
-* PgUp, PgDn – change C animation
+* PgUp, PgDn – change C angle animation
+* ], [ – radius for C rotation animation +/- 
 * a, z – zoom +/- animation
 * f, s – speed +/- for animation
 * c, d - colormap choose
 * r – resume/pause video recording
-* p - record png-image.
+* p – record png-image.

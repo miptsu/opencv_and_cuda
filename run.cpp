@@ -13,13 +13,13 @@ constexpr int keyLeft = 81, keyRight = 83, keyUp = 82, keyDown = 84;
 constexpr int keyPgup = 85, keyPgdown = 86;
 
 int main(){
-	constexpr int w = 64*36, h = 64*36; // 64*30=1920
+	constexpr int w = 64*30, h = 64*30; // 64*30=1920
 	static_assert(w%64==0); // since we have 64-threaded blocks
 	int dx = w/2, dy = h/2;
 	Mat tmp1(h, w, CV_8UC1, Scalar(0));
 	Mat tmp2(h, w, CV_8UC1, Scalar(0)); // tmp1 is showing while tmp2 is calculating and vise versa
 	Mat img, imgC(h, w, CV_8UC3);
-	float a = 1.62, scaleInit = 3;
+	float a = 3.443, r = 0.678, scaleInit = 3; // 0.7885; different r-values in [0;~1] are possible;
 	float scale = scaleInit;
 
 	enum Zoom{IN, OUT, NO};
@@ -33,7 +33,7 @@ int main(){
 	// creates file always, even if no record requested - it is ok
 	VideoWriter vw("./fractal.avi", CAP_FFMPEG, VideoWriter::fourcc('X','2','6','4'), 24, Size(w,h), true);
 
-	const auto cc = CuCalc(tmp1.data, w, h, scale, dx, dy, a);
+	const auto cc = CuCalc(tmp1.data, w, h, scale, dx, dy, r, a);
 	img = tmp2;
 
 	int key=32, lastKey = 32, delay=20; // fps upper limit is 1000/delay
@@ -43,7 +43,7 @@ int main(){
 	int d2l=16; // power of 2 preferable
 	auto thr = std::thread();
 	for(size_t cou=0; key!=27; cou++){
-		auto recalcResult = std::async(std::launch::async, &CuCalc::recalc, &cc, img.data, scale, dx, dy, a);
+		auto recalcResult = std::async(std::launch::async, &CuCalc::recalc, &cc, img.data, scale, dx, dy, r, a);
 		img = cou%2 ? tmp2 : tmp1; // shallow copy: tmp1 is showing while tmp2 is calculating and vise versa
 
 		// draw section
@@ -79,6 +79,9 @@ int main(){
 		if((char)key == 'z'){ z = z==IN ? NO : OUT; lastKey = key;}
 		if( e==PAUSE && m==STOP && z == NO){ loop = false; lastKey = key;}
 		else { loop = true;}
+		if((char)key == '['){ r -= 0.001; cout<<"r="<<r<<endl;}
+		if((char)key == ']'){ r += 0.001; cout<<"r="<<r<<endl;}
+
 		// speed control
 		if((char)key == 'f' && (lastKey==keyPgup || lastKey==keyPgdown)){ da *= 2;}
 		if((char)key == 's' && (lastKey==keyPgup || lastKey==keyPgdown)){ da /= 2;}
