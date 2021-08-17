@@ -34,18 +34,19 @@ int main(){
 	VideoWriter vw("./fractal.avi", CAP_FFMPEG, VideoWriter::fourcc('X','2','6','4'), 24, Size(w,h), true);
 
 	const auto cc = CuCalc(tmp1.data, w, h, scale, dx, dy, r, a);
-	img = tmp2;
+	img = tmp1;
 
-	int key=32, lastKey = 32, delay=20; // fps upper limit is 1000/delay
+	int key=32, lastKey = 32, delay=15; // fps upper limit is approximately 1000/delay
 	auto t = chrono::steady_clock::now();
+	auto tt = t;
 	double avrgLoop=0, dDraw, avrgDraw, avrgCalc;
 	float da=1e-5, qs=0.99, dqs=0.0005;
 	int d2l=16; // power of 2 preferable
 	auto thr = std::thread();
 	for(size_t cou=0; key!=27; cou++){
 		auto recalcResult = std::async(std::launch::async, &CuCalc::recalc, &cc, img.data, scale, dx, dy, r, a);
-		img = cou%2 ? tmp2 : tmp1; // shallow copy: tmp1 is showing while tmp2 is calculating and vise versa
-
+		if(loop){ img = img.data==tmp1.data ? tmp2 : tmp1;} // shallow copy: in loop mode tmp1 is showing while tmp2 is calculating and vise versa
+		else{ recalcResult.get();} // in step-by-step mode recalculate and redraw after every keypress
 		// draw section
 		const auto t0 = chrono::steady_clock::now();
 		applyColorMap(img, imgC, colormap); // takes a lot of resources, use UMat or draw bw-image 'img' in case of freezing
@@ -65,7 +66,9 @@ int main(){
 		t = chrono::steady_clock::now();
 
 		const auto t2 = chrono::steady_clock::now();
-		recalcResult.get(); // cc.recalc(img.data, scale, dx, dy, a);
+		if(loop){
+			recalcResult.get(); // cc.recalc(img.data, scale, dx, dy, a);
+		}
 		const auto t3 = chrono::steady_clock::now(); // expect ~zero time here
 
 		// process keypress
@@ -77,11 +80,9 @@ int main(){
 		if( key==keyDown){    m = m==UP ? STOP : DOWN; lastKey = key;}
 		if((char)key == 'a'){ z = z==OUT ? NO : IN; lastKey = key;}
 		if((char)key == 'z'){ z = z==IN ? NO : OUT; lastKey = key;}
+		//
 		if( e==PAUSE && m==STOP && z == NO){ loop = false; lastKey = key;}
 		else { loop = true;}
-		if((char)key == '['){ r -= 0.001; cout<<"r="<<r<<endl;}
-		if((char)key == ']'){ r += 0.001; cout<<"r="<<r<<endl;}
-
 		// speed control
 		if((char)key == 'f' && (lastKey==keyPgup || lastKey==keyPgdown)){ da *= 2;}
 		if((char)key == 's' && (lastKey==keyPgup || lastKey==keyPgdown)){ da /= 2;}
@@ -107,13 +108,20 @@ int main(){
 			imwrite(ss.str(), imgC);
 			cout<<"image writed to "<<ss.str()<<endl;
 		}
+		if((char)key == '['){ r -= 0.001; cout<<"r="<<r<<endl;}
+		if((char)key == ']'){ r += 0.001; cout<<"r="<<r<<endl;}
 		// /process keypress
 
 		dDraw = (double)chrono::duration_cast<chrono::milliseconds>(t1 - t0).count();
 		const double tCalc = (double)chrono::duration_cast<chrono::milliseconds>(t3-t2).count();
 		avrgDraw = cou<2 ? dDraw : 0.95*avrgDraw + 0.05*dDraw;
 		avrgCalc = cou<2 ? tCalc : 0.95*avrgCalc + 0.05*tCalc; // calc time over draw time
-		if(cou>0 && cou%(size_t)(50)==49){ cout<<avrgLoop<<" ("<<avrgDraw<<"; "<<avrgCalc<<") ms"<<endl; }
+		if(cou>0 && cou%(size_t)(50)==49){
+			auto tnow = chrono::steady_clock::now();
+			const double fps = 50*1000/(double)chrono::duration_cast<chrono::milliseconds>(tnow - tt).count();
+			cout<<avrgLoop<<" ("<<avrgDraw<<"; "<<avrgCalc<<") ms;  fps="<<fps<<endl;
+			tt = tnow;
+		}
 	}
 
 	return 0;
