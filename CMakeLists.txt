@@ -30,7 +30,6 @@ include_directories(
 )
 
 find_package(OpenCV REQUIRED)
-link_libraries(GL GLU glut cufft)
 
 add_executable(opencv_and_cuda main.cu main.h run.cpp)
 

@@ -5,6 +5,7 @@
 #include <future>
 #include "main.h"
 #include "opencv4/opencv2/opencv.hpp"
+#include <opencv2/core/cuda.hpp>
 
 using namespace cv;
 using namespace std;
@@ -16,9 +17,6 @@ int main(){
 	constexpr int w = 64*30, h = 64*30; // 64*30=1920
 	static_assert(w%64==0); // since we have 64-threaded blocks
 	int dx = w/2, dy = h/2;
-	Mat tmp1(h, w, CV_8UC1, Scalar(0));
-	Mat tmp2(h, w, CV_8UC1, Scalar(0)); // tmp1 is showing while tmp2 is calculating and vise versa
-	Mat img, imgC(h, w, CV_8UC3);
 	float a = 3.443, r = 0.678, scaleInit = 3; // 0.7885; different r-values in [0;~1] are possible;
 	float scale = scaleInit;
 
@@ -33,8 +31,12 @@ int main(){
 	// creates file always, even if no record requested - it is ok
 	VideoWriter vw("./fractal.avi", CAP_FFMPEG, VideoWriter::fourcc('X','2','6','4'), 24, Size(w,h), true);
 
-	const auto cc = CuCalc(tmp1.data, w, h, scale, dx, dy, r, a);
-	img = tmp1;
+	Mat img(h, w, CV_8UC1), imgC(h, w, CV_8UC3);
+	const auto cc1 = CuCalc(nullptr, w, h, scale, dx, dy, r, a); // firs argument could be nullptr - this let use both Mat and GpuMat
+	const auto cc2 = CuCalc(nullptr, w, h, scale, dx, dy, r, a); // to avoid copying we can either create 2 images inside CuCalc or create 2 instances of CuCalc
+	cuda::GpuMat tmp1_g(h, w, CV_8UC1, cc1.getDevImg()), tmp2_g(h, w, CV_8UC1, cc2.getDevImg()), imgC_g(h, w, CV_8UC3);
+	auto img_g = tmp1_g;
+	namedWindow("fractal", WINDOW_OPENGL | WINDOW_AUTOSIZE); // OpenGL mode let us show GpuMat without copy to Mat
 
 	int key=32, lastKey = 32, delay=15; // fps upper limit is approximately 1000/delay
 	auto t = chrono::steady_clock::now();
@@ -44,12 +46,15 @@ int main(){
 	int d2l=16; // power of 2 preferable
 	auto thr = std::thread();
 	for(size_t cou=0; key!=27; cou++){
-		auto recalcResult = std::async(std::launch::async, &CuCalc::recalc, &cc, img.data, scale, dx, dy, r, a);
-		if(loop){ img = img.data==tmp1.data ? tmp2 : tmp1;} // shallow copy: in loop mode tmp1 is showing while tmp2 is calculating and vise versa
-		else{ recalcResult.get();} // in step-by-step mode recalculate and redraw after every keypress
+		const bool is1 = img_g.data==tmp1_g.data;
+		auto recalcResult = std::async(std::launch::async, &CuCalc::recalc, is1 ? &cc2 : &cc1, nullptr, scale, dx, dy, r, a);
+		img_g = is1 ? tmp2_g : tmp1_g; // shallow copy: in loop mode tmp1 is showing while tmp2 is calculating and vise versa
 		// draw section
+		if(!loop){
+			recalcResult.get();}
 		const auto t0 = chrono::steady_clock::now();
-		applyColorMap(img, imgC, colormap); // takes a lot of resources, use UMat or draw bw-image 'img' in case of freezing
+		img_g.download(img); // device to host copy since there are
+		applyColorMap(img, imgC, colormap); // no applyColorMap(...) in cuda:: TODO add cuda::applyColorMap
 		imshow("fractal", imgC); // imshow and waitKey must be in the main thread
 		if(record && vw.isOpened()){ vw << imgC;}
 		const auto t1 = chrono::steady_clock::now();
@@ -65,12 +70,6 @@ int main(){
 		}
 		t = chrono::steady_clock::now();
 
-		const auto t2 = chrono::steady_clock::now();
-		if(loop){
-			recalcResult.get(); // cc.recalc(img.data, scale, dx, dy, a);
-		}
-		const auto t3 = chrono::steady_clock::now(); // expect ~zero time here
-
 		// process keypress
 		if(key==keyPgup){     e = e==BACK ? PAUSE : GO; lastKey = key;}
 		if(key==keyPgdown){   e = e==GO ? PAUSE : BACK; lastKey = key;}
@@ -80,9 +79,6 @@ int main(){
 		if( key==keyDown){    m = m==UP ? STOP : DOWN; lastKey = key;}
 		if((char)key == 'a'){ z = z==OUT ? NO : IN; lastKey = key;}
 		if((char)key == 'z'){ z = z==IN ? NO : OUT; lastKey = key;}
-		//
-		if( e==PAUSE && m==STOP && z == NO){ loop = false; lastKey = key;}
-		else { loop = true;}
 		// speed control
 		if((char)key == 'f' && (lastKey==keyPgup || lastKey==keyPgdown)){ da *= 2;}
 		if((char)key == 's' && (lastKey==keyPgup || lastKey==keyPgdown)){ da /= 2;}
@@ -105,13 +101,22 @@ int main(){
 		if((char)key == 'r'){ record = !record; cout<<"record state: "<<record<<endl;}
 		if((char)key == 'p'){
 			stringstream ss; ss << "picture-" << cou << ".png";
-			imwrite(ss.str(), imgC);
+			imwrite(ss.str(), img);
 			cout<<"image writed to "<<ss.str()<<endl;
 		}
 		if((char)key == '['){ r -= 0.001; cout<<"r="<<r<<endl;}
 		if((char)key == ']'){ r += 0.001; cout<<"r="<<r<<endl;}
 		// /process keypress
 
+		const auto t2 = chrono::steady_clock::now();
+		if(loop){
+			recalcResult.get(); // cc1-2.recalc(img.data, scale, dx, dy, a);
+		}
+		const auto t3 = chrono::steady_clock::now(); // expect ~zero time here
+		//
+		if( e==PAUSE && m==STOP && z == NO){ loop = false; lastKey = key;}
+		else { loop = true;}
+		// stats
 		dDraw = (double)chrono::duration_cast<chrono::milliseconds>(t1 - t0).count();
 		const double tCalc = (double)chrono::duration_cast<chrono::milliseconds>(t3-t2).count();
 		avrgDraw = cou<2 ? dDraw : 0.95*avrgDraw + 0.05*dDraw;
