@@ -28,7 +28,7 @@ __device__ unsigned char julia(const Complex& c, const int w, const int h, const
 			a = a*a + c;
 		}
 		if(a.magnitude2() > 4){
-			return (unsigned char)(__fsqrt_rd(255*255*(float)i/q));
+			return (unsigned char)(255*__fsqrt_rd((float)i/q));
 		}
 	}
 	return 255;

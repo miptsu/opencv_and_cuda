@@ -27,12 +27,12 @@ int main(){
 	Motion m = STOP;
 	Evolution e = PAUSE;
 	bool record = false, loop = false;
-	int colormap = 11;
+	int colormap = 21;
 	// creates file always, even if no record requested - it is ok
 	VideoWriter vw("./fractal.avi", CAP_FFMPEG, VideoWriter::fourcc('X','2','6','4'), 24, Size(w,h), true);
 
 	Mat img(h, w, CV_8UC1), imgC(h, w, CV_8UC3);
-	const auto cc1 = CuCalc(nullptr, w, h, scale, dx, dy, r, a); // firs argument could be nullptr - this let use both Mat and GpuMat
+	const auto cc1 = CuCalc(nullptr, w, h, scale, dx, dy, r, a); // first argument could be nullptr - this let use both Mat and GpuMat
 	const auto cc2 = CuCalc(nullptr, w, h, scale, dx, dy, r, a); // to avoid copying we can either create 2 images inside CuCalc or create 2 instances of CuCalc
 	cuda::GpuMat tmp1_g(h, w, CV_8UC1, cc1.getDevImg()), tmp2_g(h, w, CV_8UC1, cc2.getDevImg()), imgC_g(h, w, CV_8UC3);
 	auto img_g = tmp1_g;
@@ -53,9 +53,14 @@ int main(){
 		if(!loop){
 			recalcResult.get();}
 		const auto t0 = chrono::steady_clock::now();
-		img_g.download(img); // device to host copy since there are
-		applyColorMap(img, imgC, colormap); // no applyColorMap(...) in cuda:: TODO add cuda::applyColorMap
-		imshow("fractal", imgC); // imshow and waitKey must be in the main thread
+		if(colormap<22){
+			img_g.download(img); // device to host copy since there are
+			applyColorMap(img, imgC, colormap); // no applyColorMap(...) in cuda:: TODO add cuda::applyColorMap
+			imshow("fractal", imgC); // imshow and waitKey must be in the main thread
+		} else { // bw image
+			imshow("fractal", img_g);
+		}
+
 		if(record && vw.isOpened()){ vw << imgC;}
 		const auto t1 = chrono::steady_clock::now();
 
@@ -97,7 +102,7 @@ int main(){
 		if(e == BACK){  a -= da;}
 		//
 		if((char)key == 'c'){ colormap = colormap<=0 ? 0 : colormap-1;}
-		if((char)key == 'd'){ colormap = colormap>=21 ? 21 : colormap+1;}
+		if((char)key == 'd'){ colormap = colormap>=22 ? 22 : colormap+1;}
 		if((char)key == 'r'){ record = !record; cout<<"record state: "<<record<<endl;}
 		if((char)key == 'p'){
 			stringstream ss; ss << "picture-" << cou << ".png";
