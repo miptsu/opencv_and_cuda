@@ -5,14 +5,20 @@ class Complex{
 	float r, i;
 public:
 	__device__ Complex(float a, float b) : r(a), i(b){}
-	__device__ float magnitude2() const{
+	__device__ inline float magnitude2() const{
 		return r*r + i*i;
 	}
-	__device__ Complex operator* (const Complex& a) const{
+	__device__ inline Complex operator* (const Complex& a) const{
 		return {r*a.r - i*a.i, i*a.r + r*a.i};
 	}
-	__device__ Complex operator+(const Complex& a) const{
+	__device__ Complex inline operator+(const Complex& a) const{
 		return {r + a.r, i + a.i};
+	}
+	/** c = c*c + a */
+	__device__ void inline c2add(const Complex& a){
+		const float ri = r*i;
+		r = __fmaf_rn(r, r, __fmaf_rn(i, -i, a.r));
+		i = __fmaf_rn(2, ri, a.i);
 	}
 };
 
@@ -25,7 +31,8 @@ __device__ unsigned char julia(const Complex& c, const int w, const int h, const
 	constexpr uint q = 1024/unroll; // 1024 is enough and 1024/4=256 -- we are lucky!
 	for (uint i=0; i<q; i++) {
 		for (uint j=0; j<unroll; j++) {
-			a = a*a + c;
+//			 a = a*a + c; // ~20% slower
+			a.c2add(c); // ~20% faster
 		}
 		if(a.magnitude2() > 4){
 			return (unsigned char)(255*__fsqrt_rd((float)i/q));

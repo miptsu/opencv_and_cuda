@@ -32,6 +32,8 @@ int main(){
 	VideoWriter vw("./fractal.avi", CAP_FFMPEG, VideoWriter::fourcc('X','2','6','4'), 24, Size(w,h), true);
 
 	Mat img(h, w, CV_8UC1), imgC(h, w, CV_8UC3);
+	cuda::registerPageLocked(img);
+
 	const auto cc1 = CuCalc(nullptr, w, h, scale, dx, dy, r, a); // first argument could be nullptr - this let use both Mat and GpuMat
 	const auto cc2 = CuCalc(nullptr, w, h, scale, dx, dy, r, a); // to avoid copying we can either create 2 images inside CuCalc or create 2 instances of CuCalc
 	cuda::GpuMat tmp1_g(h, w, CV_8UC1, cc1.getDevImg()), tmp2_g(h, w, CV_8UC1, cc2.getDevImg()), imgC_g(h, w, CV_8UC3);
@@ -54,7 +56,7 @@ int main(){
 			recalcResult.get();}
 		const auto t0 = chrono::steady_clock::now();
 		if(colormap<22){
-			img_g.download(img); // device to host copy since there are
+			img_g.download(img); // device to host copy since there are /
 			applyColorMap(img, imgC, colormap); // no applyColorMap(...) in cuda:: TODO add cuda::applyColorMap
 			imshow("fractal", imgC); // imshow and waitKey must be in the main thread
 		} else { // bw image
@@ -69,9 +71,9 @@ int main(){
 			key = waitKey(0);
 			z = NO; m = STOP; e = PAUSE;
 		} else {
-			const double dt = (double)chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - t).count();
+			const double dt = (double)chrono::duration_cast<chrono::microseconds>(chrono::steady_clock::now() - t).count();
 			avrgLoop = avrgLoop==0 ? dt : 0.95*avrgLoop + 0.05*dt;
-			key = waitKey(dt>=delay? 1 : (int)(1+delay-dt) ); // -1 if no key pressed
+			key = waitKey(1+dt*1e-3>=delay? 1 : (int)(delay-dt*1e-3) ); // -1 if no key pressed
 		}
 		t = chrono::steady_clock::now();
 
@@ -118,18 +120,19 @@ int main(){
 			recalcResult.get(); // cc1-2.recalc(img.data, scale, dx, dy, a);
 		}
 		const auto t3 = chrono::steady_clock::now(); // expect ~zero time here
+
 		//
 		if( e==PAUSE && m==STOP && z == NO){ loop = false; lastKey = key;}
 		else { loop = true;}
 		// stats
-		dDraw = (double)chrono::duration_cast<chrono::milliseconds>(t1 - t0).count();
-		const double tCalc = (double)chrono::duration_cast<chrono::milliseconds>(t3-t2).count();
+		dDraw = (double)chrono::duration_cast<chrono::microseconds>(t1 - t0).count();
+		const double tCalc = (double)chrono::duration_cast<chrono::microseconds>(t3-t2).count();
 		avrgDraw = cou<2 ? dDraw : 0.95*avrgDraw + 0.05*dDraw;
 		avrgCalc = cou<2 ? tCalc : 0.95*avrgCalc + 0.05*tCalc; // calc time over draw time
 		if(cou>0 && cou%(size_t)(50)==49){
 			auto tnow = chrono::steady_clock::now();
-			const double fps = 50*1000/(double)chrono::duration_cast<chrono::milliseconds>(tnow - tt).count();
-			cout<<avrgLoop<<" ("<<avrgDraw<<"; "<<avrgCalc<<") ms;  fps="<<fps<<endl;
+			const double fps = 50*1000/(double)chrono::duration_cast<chrono::microseconds>(tnow - tt).count();
+			cout<<avrgLoop*1e-3<<" ("<<avrgDraw*1e-3<<"; "<<avrgCalc*1e-3<<") ms;  fps="<<1e3*fps<<endl;
 			tt = tnow;
 		}
 	}
